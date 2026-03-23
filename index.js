@@ -56,15 +56,14 @@ app.post("/ask", async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Groq Error:", error.response?.data || error.message);
+  console.error("FULL ERROR:", error);
 
-    res.status(500).send({
-      status: false,
-      message:
-        error.response?.data?.error?.message ||
-        "AI error. Try again later.",
-    });
-  }
+  res.status(500).send({
+    status: false,
+    message: error.message,
+    error: error.response?.data || "No response data"
+  });
+}
 });
 
 // app.post("/ask", async (req, res) => {
