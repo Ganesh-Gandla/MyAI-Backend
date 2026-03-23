@@ -1,17 +1,26 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { GoogleGenAI } from "@google/genai";
+// import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
 
 dotenv.config();
-const key = process.env.GEMINI_API_KEY;
 
-const ai = new GoogleGenAI({ apiKey: key });
+const client = new OpenAI({
+  apiKey: process.env.GROQ_API_KEY,
+  baseURL: "https://api.groq.com/openai/v1", // ✅ REQUIRED
+});
+
+// const key = process.env.GEMINI_API_KEY;
+
+// const ai = new GoogleGenAI({ apiKey: key });
 
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: "https://my-ai-frontend-beta.vercel.app"
+}));
 app.use(express.json());
 
 // Routes
@@ -23,24 +32,63 @@ app.post("/ask", async (req, res) => {
   try {
     const { question } = req.body;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: question,
+    if (!question || !question.trim()) {
+      return res.status(400).send({
+        status: false,
+        message: "Question is required",
+      });
+    }
+
+    const response = await client.chat.completions.create({
+      model: "llama3-8b-8192",
+      messages: [
+        { role: "system", content: "You are a helpful assistant." },
+        { role: "user", content: question },
+      ],
     });
+
+    const answer =
+      response?.choices?.[0]?.message?.content || "No response generated.";
 
     res.send({
       status: true,
-      message: "content found...",
-      finalData: response.text,
+      finalData: answer,
     });
+
   } catch (error) {
+    console.error("Groq Error:", error.response?.data || error.message);
+
     res.status(500).send({
       status: false,
-      message: "Error generating response",
-      error: error.message,
+      message:
+        error.response?.data?.error?.message ||
+        "AI error. Try again later.",
     });
   }
 });
+
+// app.post("/ask", async (req, res) => {
+//   try {
+//     const { question } = req.body;
+
+//     const response = await ai.models.generateContent({
+//       model: "gemini-3-flash-preview",
+//       contents: question,
+//     });
+
+//     res.send({
+//       status: true,
+//       message: "content found...",
+//       finalData: response.text,
+//     });
+//   } catch (error) {
+//     res.status(500).send({
+//       status: false,
+//       message: "Error generating response",
+//       error: error.message,
+//     });
+//   }
+// });
 
 // ✅ IMPORTANT: Export app (instead of app.listen)
 export default app;
